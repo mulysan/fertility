@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Israel Fertility Rate by Age Group (1950-2023)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #fff;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 10px;
+            font-size: 2.2em;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .subtitle {
+            text-align: center;
+            color: #888;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .chart-title {
+            font-size: 1.3em;
+            margin-bottom: 15px;
+            color: #00d4ff;
+        }
+        .heatmap-container {
+            overflow-x: auto;
+            margin-bottom: 20px;
+        }
+        .heatmap {
+            display: grid;
+            gap: 1px;
+            background: #1a1a2e;
+            padding: 10px;
+            border-radius: 8px;
+            min-width: 1200px;
+        }
+        .heatmap-row {
+            display: flex;
+            gap: 1px;
+        }
+        .heatmap-cell {
+            width: 16px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 7px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            border-radius: 2px;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.5);
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            z-index: 10;
+            position: relative;
+        }
+        .heatmap-label {
+            width: 60px;
+            display: flex;
+            align-items: center;
+            font-size: 11px;
+            color: #aaa;
+            padding-right: 10px;
+        }
+        .year-labels {
+            display: flex;
+            gap: 1px;
+            margin-left: 60px;
+            margin-bottom: 5px;
+        }
+        .year-label {
+            width: 16px;
+            font-size: 8px;
+            color: #666;
+            text-align: center;
+            transform: rotate(-45deg);
+            transform-origin: center;
+            height: 30px;
+        }
+        .legend {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-top: 20px;
+            gap: 10px;
+        }
+        .legend-gradient {
+            width: 300px;
+            height: 20px;
+            border-radius: 4px;
+        }
+        .legend-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 300px;
+            font-size: 12px;
+            color: #888;
+        }
+        .tooltip {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.9);
+            color: #fff;
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            pointer-events: none;
+            z-index: 1000;
+            display: none;
+            border: 1px solid #00d4ff;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #00d4ff;
+        }
+        .stat-label {
+            color: #888;
+            margin-top: 5px;
+        }
+        .line-chart-container {
+            height: 400px;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        .control-btn {
+            background: rgba(0, 212, 255, 0.2);
+            border: 1px solid #00d4ff;
+            color: #00d4ff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 12px;
+        }
+        .control-btn:hover, .control-btn.active {
+            background: #00d4ff;
+            color: #1a1a2e;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Israel Fertility Rate Heatmap</h1>
+        <p class="subtitle">Births per 1,000 women by age group (1950-2023)</p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="peakRate">-</div>
+                <div class="stat-label">Peak Fertility Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="peakYear">-</div>
+                <div class="stat-label">Peak Year (25-29 age)</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="currentRate">-</div>
+                <div class="stat-label">2023 Total Rate</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="trendChange">-</div>
+                <div class="stat-label">Change Since 1950</div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Fertility Rate Heatmap by Age Group</div>
+            <div class="heatmap-container">
+                <div class="year-labels" id="yearLabels"></div>
+                <div class="heatmap" id="heatmap"></div>
+            </div>
+            <div class="legend">
+                <span style="color: #888; font-size: 12px;">Low</span>
+                <div class="legend-gradient" style="background: linear-gradient(90deg, #0d0887, #5302a3, #8b0aa5, #b83289, #db5c68, #f48849, #febd2a, #f0f921);"></div>
+                <span style="color: #888; font-size: 12px;">High</span>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Fertility Trends Over Time</div>
+            <div class="controls" id="controls"></div>
+            <div class="line-chart-container">
+                <canvas id="lineChart"></canvas>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">Age Distribution Comparison</div>
+            <div class="controls">
+                <button class="control-btn" onclick="updateBarChart(1950)">1950</button>
+                <button class="control-btn" onclick="updateBarChart(1970)">1970</button>
+                <button class="control-btn" onclick="updateBarChart(1990)">1990</button>
+                <button class="control-btn" onclick="updateBarChart(2010)">2010</button>
+                <button class="control-btn active" onclick="updateBarChart(2023)">2023</button>
+            </div>
+            <div class="line-chart-container">
+                <canvas id="barChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+        // Israel fertility data (1950-2023)
+        const israelData = [
+            {year: 1950, f12: 0.163, f17: 96.414, f22: 281.26, f27: 240.826, f32: 175.429, f37: 85.34, f42: 31.669, f47: 4.694, f52: 0.344},
+            {year: 1951, f12: 0.159, f17: 98.635, f22: 286.051, f27: 245.064, f32: 180.327, f37: 86.77, f42: 32.611, f47: 4.689, f52: 0.328},
+            {year: 1952, f12: 0.153, f17: 100.851, f22: 289.632, f27: 248.344, f32: 183.712, f37: 88.206, f42: 33.313, f47: 4.662, f52: 0.312},
+            {year: 1953, f12: 0.146, f17: 99.991, f22: 288.998, f27: 247.582, f32: 182.922, f37: 87.915, f42: 32.649, f47: 4.714, f52: 0.322},
+            {year: 1954, f12: 0.116, f17: 86.992, f22: 269.375, f27: 229.431, f32: 169.261, f37: 81.175, f42: 27.695, f47: 4.752, f52: 0.379},
+            {year: 1955, f12: 0.107, f17: 82.449, f22: 275.207, f27: 233.981, f32: 169.114, f37: 85.118, f42: 27.506, f47: 4.705, f52: 0.392},
+            {year: 1956, f12: 0.095, f17: 79.118, f22: 278.68, f27: 241.573, f32: 169.143, f37: 89.09, f42: 25.526, f47: 4.68, f52: 0.397},
+            {year: 1957, f12: 0.114, f17: 71.671, f22: 274.189, f27: 245.791, f32: 167.084, f37: 89.257, f42: 23.992, f47: 4.638, f52: 0.417},
+            {year: 1958, f12: 0.137, f17: 64.366, f22: 269.417, f27: 249.703, f32: 164.903, f37: 88.9, f42: 22.698, f47: 4.577, f52: 0.432},
+            {year: 1959, f12: 0.157, f17: 53.329, f22: 261.985, f27: 260.868, f32: 167.661, f37: 95.834, f42: 27.123, f47: 4.497, f52: 0.391},
+            {year: 1960, f12: 0.188, f17: 54.04, f22: 266.673, f27: 258.913, f32: 166.702, f37: 90.258, f42: 28.883, f47: 4.405, f52: 0.419},
+            {year: 1961, f12: 0.176, f17: 47.09, f22: 252.532, f27: 247.397, f32: 161.533, f37: 83.265, f42: 28.836, f47: 4.275, f52: 0.439},
+            {year: 1962, f12: 0.154, f17: 43.45, f22: 244.731, f27: 246.671, f32: 164.277, f37: 80.016, f42: 28.199, f47: 4.128, f52: 0.447},
+            {year: 1963, f12: 0.132, f17: 42.14, f22: 239.292, f27: 248.764, f32: 169.69, f37: 78.964, f42: 28.193, f47: 3.898, f52: 0.43},
+            {year: 1964, f12: 0.117, f17: 42.496, f22: 237.698, f27: 255.99, f32: 176.065, f37: 80.815, f42: 28.689, f47: 3.891, f52: 0.413},
+            {year: 1965, f12: 0.104, f17: 41.006, f22: 230.189, f27: 255.463, f32: 177.622, f37: 81.851, f42: 28.098, f47: 3.91, f52: 0.394},
+            {year: 1966, f12: 0.093, f17: 39.155, f22: 217.779, f27: 245.5, f32: 172.825, f37: 81.21, f42: 25.332, f47: 3.921, f52: 0.372},
+            {year: 1967, f12: 0.083, f17: 35.674, f22: 205.236, f27: 236.872, f32: 169.739, f37: 84.242, f42: 23.581, f47: 3.919, f52: 0.34},
+            {year: 1968, f12: 0.076, f17: 32.778, f22: 195.544, f27: 225.117, f32: 172.987, f37: 84.879, f42: 22.752, f47: 3.86, f52: 0.343},
+            {year: 1969, f12: 0.075, f17: 36.653, f22: 193.236, f27: 219.532, f32: 172.541, f37: 85.099, f42: 21.312, f47: 3.667, f52: 0.32},
+            {year: 1970, f12: 0.077, f17: 43.794, f22: 199.843, f27: 220.476, f32: 178.496, f37: 88.186, f42: 21.211, f47: 3.393, f52: 0.287},
+            {year: 1971, f12: 0.08, f17: 41.646, f22: 201.772, f27: 225.979, f32: 178.011, f37: 94.349, f42: 24.014, f47: 3.18, f52: 0.235},
+            {year: 1972, f12: 0.085, f17: 41.229, f22: 202.452, f27: 225.576, f32: 171.406, f37: 92.164, f42: 24.233, f47: 3.04, f52: 0.225},
+            {year: 1973, f12: 0.09, f17: 39.699, f22: 196.818, f27: 213.694, f32: 159.008, f37: 87.858, f42: 22.788, f47: 2.894, f52: 0.215},
+            {year: 1974, f12: 0.094, f17: 41.233, f22: 202.252, f27: 214.098, f32: 159.743, f37: 87.646, f42: 22.801, f47: 2.691, f52: 0.206},
+            {year: 1975, f12: 0.101, f17: 42.054, f22: 205.439, f27: 210.772, f32: 157.626, f37: 85.759, f42: 21.179, f47: 2.539, f52: 0.206},
+            {year: 1976, f12: 0.11, f17: 41.817, f22: 207.116, f27: 211.695, f32: 157.38, f37: 85.735, f42: 21.18, f47: 2.422, f52: 0.192},
+            {year: 1977, f12: 0.127, f17: 40.195, f22: 196.761, f27: 205.568, f32: 151.619, f37: 81.072, f42: 19.729, f47: 2.348, f52: 0.182},
+            {year: 1978, f12: 0.147, f17: 36.889, f22: 186.983, f27: 195.597, f32: 138.207, f37: 74.374, f42: 18.066, f47: 2.26, f52: 0.181},
+            {year: 1979, f12: 0.163, f17: 35.987, f22: 184.692, f27: 196.164, f32: 133.434, f37: 73.608, f42: 16.955, f47: 2.144, f52: 0.167},
+            {year: 1980, f12: 0.171, f17: 34.169, f22: 179.736, f27: 197.028, f32: 131.135, f37: 71.779, f42: 16.213, f47: 2.029, f52: 0.166},
+            {year: 1981, f12: 0.173, f17: 31.094, f22: 172.65, f27: 192.481, f32: 132.681, f37: 70.232, f42: 15.197, f47: 1.881, f52: 0.174},
+            {year: 1982, f12: 0.173, f17: 30.369, f22: 174.12, f27: 195.244, f32: 138, f37: 73.981, f42: 15.578, f47: 1.717, f52: 0.158},
+            {year: 1983, f12: 0.181, f17: 29.448, f22: 172.34, f27: 198.539, f32: 141.307, f37: 72.673, f42: 15.885, f47: 1.591, f52: 0.161},
+            {year: 1984, f12: 0.166, f17: 27.223, f22: 166.027, f27: 195.52, f32: 140.7, f37: 69.268, f42: 16.515, f47: 1.479, f52: 0.166},
+            {year: 1985, f12: 0.151, f17: 24.578, f22: 158.563, f27: 195.088, f32: 141.776, f37: 68.846, f42: 17.137, f47: 1.376, f52: 0.153},
+            {year: 1986, f12: 0.133, f17: 21.077, f22: 152.083, f27: 193.692, f32: 141.354, f37: 70.327, f42: 17.528, f47: 1.293, f52: 0.134},
+            {year: 1987, f12: 0.108, f17: 19.823, f22: 146.051, f27: 190.847, f32: 138.59, f37: 70.629, f42: 17.54, f47: 1.249, f52: 0.118},
+            {year: 1988, f12: 0.094, f17: 19.63, f22: 143.242, f27: 190.317, f32: 138.433, f37: 70.555, f42: 16.434, f47: 1.235, f52: 0.114},
+            {year: 1989, f12: 0.08, f17: 19.21, f22: 136.66, f27: 187.705, f32: 136.347, f37: 70.443, f42: 15.783, f47: 1.244, f52: 0.097},
+            {year: 1990, f12: 0.086, f17: 18.872, f22: 132.724, f27: 187.773, f32: 139.084, f37: 70.972, f42: 15.519, f47: 1.264, f52: 0.09},
+            {year: 1991, f12: 0.087, f17: 19.046, f22: 129.05, f27: 187.49, f32: 138.687, f37: 71.288, f42: 17.234, f47: 1.367, f52: 0.078},
+            {year: 1992, f12: 0.08, f17: 19.01, f22: 125.936, f27: 188.961, f32: 144.826, f37: 74.232, f42: 17.904, f47: 1.419, f52: 0.069},
+            {year: 1993, f12: 0.069, f17: 18.854, f22: 123.663, f27: 188.057, f32: 146.164, f37: 75.917, f42: 18.239, f47: 1.383, f52: 0.065},
+            {year: 1994, f12: 0.052, f17: 18.608, f22: 120.405, f27: 185.223, f32: 147.301, f37: 76.193, f42: 17.753, f47: 1.336, f52: 0.066},
+            {year: 1995, f12: 0.04, f17: 18.353, f22: 118.017, f27: 184.804, f32: 147.873, f37: 76.445, f42: 17.459, f47: 1.328, f52: 0.066},
+            {year: 1996, f12: 0.039, f17: 18.061, f22: 116.883, f27: 186.281, f32: 152.062, f37: 78.552, f42: 18.217, f47: 1.361, f52: 0.064},
+            {year: 1997, f12: 0.04, f17: 17.509, f22: 114.783, f27: 185.868, f32: 155.78, f37: 79.408, f42: 19.225, f47: 1.409, f52: 0.062},
+            {year: 1998, f12: 0.042, f17: 17.744, f22: 118.016, f27: 186.881, f32: 157.799, f37: 81.931, f42: 19.919, f47: 1.463, f52: 0.066},
+            {year: 1999, f12: 0.041, f17: 17.343, f22: 116.925, f27: 183.016, f32: 156.944, f37: 81.919, f42: 19.896, f47: 1.496, f52: 0.063},
+            {year: 2000, f12: 0.033, f17: 17.271, f22: 117.479, f27: 182.943, f32: 160.853, f37: 84.162, f42: 20.755, f47: 1.566, f52: 0.066},
+            {year: 2001, f12: 0.028, f17: 16.816, f22: 114.177, f27: 177.531, f32: 158.899, f37: 84.789, f42: 20.935, f47: 1.633, f52: 0.066},
+            {year: 2002, f12: 0.026, f17: 16.644, f22: 112.312, f27: 177.058, f32: 160.225, f37: 87.505, f42: 20.942, f47: 1.684, f52: 0.062},
+            {year: 2003, f12: 0.024, f17: 16.472, f22: 112.34, f27: 179.332, f32: 162.842, f37: 89.559, f42: 22.185, f47: 1.746, f52: 0.059},
+            {year: 2004, f12: 0.02, f17: 15.523, f22: 108.996, f27: 172.974, f32: 159.655, f37: 89.127, f42: 22.243, f47: 1.828, f52: 0.06},
+            {year: 2005, f12: 0.017, f17: 15.006, f22: 104.813, f27: 168.469, f32: 157.476, f37: 89.567, f42: 22.666, f47: 1.928, f52: 0.059},
+            {year: 2006, f12: 0.015, f17: 14.51, f22: 104.883, f27: 168.165, f32: 161.301, f37: 93.415, f42: 23.3, f47: 2.013, f52: 0.06},
+            {year: 2007, f12: 0.009, f17: 14.149, f22: 103.742, f27: 168.462, f32: 165.141, f37: 95.03, f42: 23.691, f47: 2.056, f52: 0.062},
+            {year: 2008, f12: 0.008, f17: 14.044, f22: 105.809, f27: 169.469, f32: 168.66, f37: 97.275, f42: 24.421, f47: 2.112, f52: 0.063},
+            {year: 2009, f12: 0.007, f17: 13.728, f22: 107.213, f27: 169.891, f32: 171.339, f37: 99.383, f42: 25.911, f47: 2.197, f52: 0.063},
+            {year: 2010, f12: 0.006, f17: 13.21, f22: 109.084, f27: 173.661, f32: 176.324, f37: 104.479, f42: 27.625, f47: 2.331, f52: 0.061},
+            {year: 2011, f12: 0.006, f17: 12.286, f22: 106.878, f27: 172.993, f32: 175.975, f37: 104.559, f42: 28.391, f47: 2.471, f52: 0.066},
+            {year: 2012, f12: 0.005, f17: 11.634, f22: 108.055, f27: 175.124, f32: 178.477, f37: 106.097, f42: 29.429, f47: 2.588, f52: 0.07},
+            {year: 2013, f12: 0.004, f17: 10.315, f22: 106.381, f27: 174.831, f32: 178.13, f37: 105.786, f42: 29.626, f47: 2.739, f52: 0.078},
+            {year: 2014, f12: 0.004, f17: 10.092, f22: 107.092, f27: 177.017, f32: 181.497, f37: 108.075, f42: 29.64, f47: 2.88, f52: 0.083},
+            {year: 2015, f12: 0.004, f17: 9.672, f22: 107.644, f27: 177.802, f32: 181.793, f37: 107.858, f42: 30.81, f47: 3.042, f52: 0.089},
+            {year: 2016, f12: 0.003, f17: 9.277, f22: 107.527, f27: 179.246, f32: 183.248, f37: 108.389, f42: 31.872, f47: 3.249, f52: 0.1},
+            {year: 2017, f12: 0.003, f17: 8.863, f22: 106.028, f27: 179.55, f32: 185.029, f37: 109.966, f42: 31.783, f47: 3.39, f52: 0.109},
+            {year: 2018, f12: 0.004, f17: 8.186, f22: 102.993, f27: 178.936, f32: 183.901, f37: 110.911, f42: 31.724, f47: 3.481, f52: 0.112},
+            {year: 2019, f12: 0.004, f17: 7.481, f22: 98.537, f27: 175.163, f32: 179.538, f37: 110.35, f42: 31.292, f47: 3.615, f52: 0.119},
+            {year: 2020, f12: 0.003, f17: 6.918, f22: 93.475, f27: 170.352, f32: 175.679, f37: 106.907, f42: 29.79, f47: 3.662, f52: 0.132},
+            {year: 2021, f12: 0.003, f17: 6.759, f22: 92.579, f27: 172.882, f32: 183.815, f37: 112.417, f42: 31.005, f47: 3.737, f52: 0.127},
+            {year: 2022, f12: 0.002, f17: 6.737, f22: 89.542, f27: 168.906, f32: 179.496, f37: 108.412, f42: 29.715, f47: 3.783, f52: 0.14},
+            {year: 2023, f12: 0.002, f17: 6.204, f22: 85.715, f27: 163.682, f32: 173.816, f37: 103.803, f42: 28.182, f47: 3.743, f52: 0.148}
+        ];
+
+        const ageGroups = [
+            { key: 'f12', label: '10-14', color: '#e41a1c' },
+            { key: 'f17', label: '15-19', color: '#377eb8' },
+            { key: 'f22', label: '20-24', color: '#4daf4a' },
+            { key: 'f27', label: '25-29', color: '#984ea3' },
+            { key: 'f32', label: '30-34', color: '#ff7f00' },
+            { key: 'f37', label: '35-39', color: '#ffff33' },
+            { key: 'f42', label: '40-44', color: '#a65628' },
+            { key: 'f47', label: '45-49', color: '#f781bf' },
+            { key: 'f52', label: '50-54', color: '#999999' }
+        ];
+
+        // Color scale function (plasma-like)
+        function getColor(value, min, max) {
+            const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+            const colors = [
+                [13, 8, 135],
+                [83, 2, 163],
+                [139, 10, 165],
+                [184, 50, 137],
+                [219, 92, 104],
+                [244, 136, 73],
+                [254, 189, 42],
+                [240, 249, 33]
+            ];
+            const idx = t * (colors.length - 1);
+            const i = Math.floor(idx);
+            const f = idx - i;
+            const c1 = colors[Math.min(i, colors.length - 1)];
+            const c2 = colors[Math.min(i + 1, colors.length - 1)];
+            const r = Math.round(c1[0] + f * (c2[0] - c1[0]));
+            const g = Math.round(c1[1] + f * (c2[1] - c1[1]));
+            const b = Math.round(c1[2] + f * (c2[2] - c1[2]));
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // Calculate statistics
+        function calculateStats() {
+            // Find peak rate
+            let maxRate = 0;
+            let peakYear = 1950;
+            israelData.forEach(d => {
+                if (d.f27 > maxRate) {
+                    maxRate = d.f27;
+                    peakYear = d.year;
+                }
+            });
+
+            // Calculate total fertility rate (sum of all age groups * 5 / 1000)
+            const current = israelData[israelData.length - 1];
+            const first = israelData[0];
+            const currentTotal = (current.f12 + current.f17 + current.f22 + current.f27 + current.f32 + current.f37 + current.f42 + current.f47 + current.f52) * 5 / 1000;
+            const firstTotal = (first.f12 + first.f17 + first.f22 + first.f27 + first.f32 + first.f37 + first.f42 + first.f47 + first.f52) * 5 / 1000;
+
+            document.getElementById('peakRate').textContent = maxRate.toFixed(1);
+            document.getElementById('peakYear').textContent = peakYear;
+            document.getElementById('currentRate').textContent = currentTotal.toFixed(2);
+            document.getElementById('trendChange').textContent = ((currentTotal - firstTotal) / firstTotal * 100).toFixed(1) + '%';
+        }
+
+        // Build heatmap
+        function buildHeatmap() {
+            const heatmap = document.getElementById('heatmap');
+            const yearLabels = document.getElementById('yearLabels');
+            const tooltip = document.getElementById('tooltip');
+
+            // Find min and max values (excluding f12 and f52 which are very low)
+            let allValues = [];
+            israelData.forEach(d => {
+                ageGroups.forEach(ag => {
+                    allValues.push(d[ag.key]);
+                });
+            });
+            const minVal = Math.min(...allValues);
+            const maxVal = Math.max(...allValues);
+
+            // Year labels
+            israelData.forEach((d, i) => {
+                if (i % 5 === 0) {
+                    const label = document.createElement('div');
+                    label.className = 'year-label';
+                    label.textContent = d.year;
+                    label.style.marginLeft = (i > 0 ? (5 * 17 - 16) : 0) + 'px';
+                    yearLabels.appendChild(label);
+                }
+            });
+
+            // Heatmap rows
+            ageGroups.forEach(ag => {
+                const row = document.createElement('div');
+                row.className = 'heatmap-row';
+
+                const label = document.createElement('div');
+                label.className = 'heatmap-label';
+                label.textContent = ag.label;
+                row.appendChild(label);
+
+                israelData.forEach(d => {
+                    const cell = document.createElement('div');
+                    cell.className = 'heatmap-cell';
+                    cell.style.backgroundColor = getColor(d[ag.key], minVal, maxVal);
+
+                    cell.addEventListener('mouseenter', (e) => {
+                        tooltip.style.display = 'block';
+                        tooltip.innerHTML = `<strong>${d.year}</strong><br>Age ${ag.label}: ${d[ag.key].toFixed(1)} births per 1,000 women`;
+                    });
+
+                    cell.addEventListener('mousemove', (e) => {
+                        tooltip.style.left = (e.clientX + 10) + 'px';
+                        tooltip.style.top = (e.clientY + 10) + 'px';
+                    });
+
+                    cell.addEventListener('mouseleave', () => {
+                        tooltip.style.display = 'none';
+                    });
+
+                    row.appendChild(cell);
+                });
+
+                heatmap.appendChild(row);
+            });
+        }
+
+        // Line chart
+        let lineChart;
+        let selectedAgeGroups = ['f22', 'f27', 'f32', 'f37'];
+
+        function buildLineChart() {
+            const ctx = document.getElementById('lineChart').getContext('2d');
+            const controls = document.getElementById('controls');
+
+            // Build control buttons
+            ageGroups.forEach(ag => {
+                const btn = document.createElement('button');
+                btn.className = 'control-btn' + (selectedAgeGroups.includes(ag.key) ? ' active' : '');
+                btn.textContent = ag.label;
+                btn.style.borderColor = ag.color;
+                btn.style.color = ag.color;
+                if (selectedAgeGroups.includes(ag.key)) {
+                    btn.style.background = ag.color;
+                    btn.style.color = '#1a1a2e';
+                }
+                btn.addEventListener('click', () => {
+                    if (selectedAgeGroups.includes(ag.key)) {
+                        selectedAgeGroups = selectedAgeGroups.filter(k => k !== ag.key);
+                        btn.classList.remove('active');
+                        btn.style.background = 'rgba(0, 212, 255, 0.2)';
+                        btn.style.color = ag.color;
+                    } else {
+                        selectedAgeGroups.push(ag.key);
+                        btn.classList.add('active');
+                        btn.style.background = ag.color;
+                        btn.style.color = '#1a1a2e';
+                    }
+                    updateLineChart();
+                });
+                controls.appendChild(btn);
+            });
+
+            lineChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: israelData.map(d => d.year),
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#fff' }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            titleColor: '#00d4ff',
+                            bodyColor: '#fff',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#888' }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#888' },
+                            title: {
+                                display: true,
+                                text: 'Births per 1,000 women',
+                                color: '#888'
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateLineChart();
+        }
+
+        function updateLineChart() {
+            const datasets = ageGroups
+                .filter(ag => selectedAgeGroups.includes(ag.key))
+                .map(ag => ({
+                    label: ag.label,
+                    data: israelData.map(d => d[ag.key]),
+                    borderColor: ag.color,
+                    backgroundColor: ag.color + '33',
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    tension: 0.3
+                }));
+
+            lineChart.data.datasets = datasets;
+            lineChart.update();
+        }
+
+        // Bar chart
+        let barChart;
+
+        function buildBarChart() {
+            const ctx = document.getElementById('barChart').getContext('2d');
+
+            barChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ageGroups.map(ag => ag.label),
+                    datasets: [{
+                        label: '2023',
+                        data: [],
+                        backgroundColor: ageGroups.map(ag => ag.color + 'cc'),
+                        borderColor: ageGroups.map(ag => ag.color),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.9)',
+                            titleColor: '#00d4ff',
+                            bodyColor: '#fff',
+                            borderColor: '#00d4ff',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#888' },
+                            title: {
+                                display: true,
+                                text: 'Age Group',
+                                color: '#888'
+                            }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { color: '#888' },
+                            title: {
+                                display: true,
+                                text: 'Births per 1,000 women',
+                                color: '#888'
+                            }
+                        }
+                    }
+                }
+            });
+
+            updateBarChart(2023);
+        }
+
+        function updateBarChart(year) {
+            const data = israelData.find(d => d.year === year);
+            if (!data) return;
+
+            barChart.data.datasets[0].label = year.toString();
+            barChart.data.datasets[0].data = ageGroups.map(ag => data[ag.key]);
+            barChart.update();
+
+            // Update active button
+            document.querySelectorAll('.controls .control-btn').forEach(btn => {
+                if (btn.textContent === year.toString()) {
+                    btn.classList.add('active');
+                } else if (!isNaN(parseInt(btn.textContent))) {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // Initialize
+        calculateStats();
+        buildHeatmap();
+        buildLineChart();
+        buildBarChart();
+    </script>
+</body>
+</html>
