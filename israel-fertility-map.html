@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Israel Fertility Rate by Age Group (1950-2023)</title>
+    <title>Israel: Cumulative Fertility by Birth Cohort</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         * {
@@ -118,66 +118,125 @@
             {year: 2023, f12: 0.002, f17: 6.204, f22: 85.715, f27: 163.682, f32: 173.816, f37: 103.803, f42: 28.182, f47: 3.743, f52: 0.148}
         ];
 
+        // Age group definitions: [midpoint age, field name]
         const ageGroups = [
-            { key: 'f12', label: '10-14', color: '#e41a1c' },
-            { key: 'f17', label: '15-19', color: '#377eb8' },
-            { key: 'f22', label: '20-24', color: '#4daf4a' },
-            { key: 'f27', label: '25-29', color: '#984ea3' },
-            { key: 'f32', label: '30-34', color: '#ff7f00' },
-            { key: 'f37', label: '35-39', color: '#a65628' },
-            { key: 'f42', label: '40-44', color: '#f781bf' },
-            { key: 'f47', label: '45-49', color: '#999999' },
-            { key: 'f52', label: '50-54', color: '#66c2a5' }
+            [12, 'f12'], [17, 'f17'], [22, 'f22'], [27, 'f27'], [32, 'f32'],
+            [37, 'f37'], [42, 'f42'], [47, 'f47'], [52, 'f52']
         ];
 
-        // Build line chart
-        const ctx = document.getElementById('lineChart').getContext('2d');
+        // Create data lookup by year
+        const dataByYear = {};
+        israelData.forEach(d => { dataByYear[d.year] = d; });
 
-        const datasets = ageGroups.map(ag => ({
-            label: ag.label,
-            data: israelData.map(d => d[ag.key]),
-            borderColor: ag.color,
-            backgroundColor: 'transparent',
-            borderWidth: 2.5,
-            pointRadius: 0,
-            pointHoverRadius: 5,
-            tension: 0.1
-        }));
+        const minYear = 1950, maxYear = 2023;
+
+        // Calculate cumulative births for each birth cohort
+        function calculateCohortData(birthYear) {
+            const years = [];
+            const cumulative = [];
+            let total = 0;
+
+            for (let year = minYear; year <= maxYear; year++) {
+                const age = year - birthYear;
+                let fertilityRate = 0;
+
+                // Find matching age group
+                for (const [ageMid, field] of ageGroups) {
+                    if (age >= ageMid - 2 && age <= ageMid + 2) {
+                        if (dataByYear[year]) {
+                            // Convert per 1000 to actual rate, multiply by 5 for the period
+                            fertilityRate = dataByYear[year][field] * 5 / 1000;
+                        }
+                        break;
+                    }
+                }
+
+                total += fertilityRate;
+                if (total > 0) {
+                    years.push(year);
+                    cumulative.push(total);
+                }
+            }
+
+            return { years, cumulative };
+        }
+
+        // Generate colors using viridis-like palette
+        function getViridisColor(t) {
+            // Simplified viridis colormap
+            const colors = [
+                [68, 1, 84], [72, 40, 120], [62, 74, 137], [49, 104, 142],
+                [38, 130, 142], [31, 158, 137], [53, 183, 121], [109, 205, 89],
+                [180, 222, 44], [253, 231, 37]
+            ];
+            const idx = t * (colors.length - 1);
+            const i = Math.floor(idx);
+            const f = idx - i;
+            const c1 = colors[Math.min(i, colors.length - 1)];
+            const c2 = colors[Math.min(i + 1, colors.length - 1)];
+            const r = Math.round(c1[0] + f * (c2[0] - c1[0]));
+            const g = Math.round(c1[1] + f * (c2[1] - c1[1]));
+            const b = Math.round(c1[2] + f * (c2[2] - c1[2]));
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // Select birth years to plot (every 5 years from 1920 to 2000)
+        const birthYears = [];
+        for (let by = 1920; by <= 2000; by += 5) {
+            birthYears.push(by);
+        }
+
+        // Build datasets
+        const datasets = birthYears.map((birthYear, i) => {
+            const cohort = calculateCohortData(birthYear);
+            const t = i / (birthYears.length - 1);
+
+            // Only include cohorts with enough data
+            if (cohort.years.length < 5) return null;
+
+            return {
+                label: birthYear.toString(),
+                data: cohort.years.map((year, j) => ({ x: year, y: cohort.cumulative[j] })),
+                borderColor: getViridisColor(t),
+                backgroundColor: 'transparent',
+                borderWidth: 2,
+                pointRadius: 0,
+                pointHoverRadius: 4,
+                tension: 0.1
+            };
+        }).filter(d => d !== null);
+
+        // Create chart
+        const ctx = document.getElementById('lineChart').getContext('2d');
 
         new Chart(ctx, {
             type: 'line',
-            data: {
-                labels: israelData.map(d => d.year),
-                datasets: datasets
-            },
+            data: { datasets },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 interaction: {
-                    mode: 'index',
+                    mode: 'nearest',
                     intersect: false,
                 },
                 plugins: {
                     title: {
                         display: true,
-                        text: 'Israel: Fertility Rate by Age Group (1950-2023)',
-                        font: {
-                            size: 18,
-                            weight: 'bold'
-                        },
+                        text: 'Israel: Cumulative Fertility by Birth Cohort',
+                        font: { size: 18, weight: 'bold' },
                         padding: 20
                     },
                     legend: {
                         position: 'right',
                         labels: {
-                            font: { size: 12 },
+                            font: { size: 10 },
                             usePointStyle: true,
-                            padding: 15
+                            padding: 8
                         },
                         title: {
                             display: true,
-                            text: 'Age Group',
-                            font: { size: 14, weight: 'bold' }
+                            text: 'Birth Year',
+                            font: { size: 12, weight: 'bold' }
                         }
                     },
                     tooltip: {
@@ -188,39 +247,38 @@
                         borderWidth: 1,
                         padding: 12,
                         callbacks: {
+                            title: function(context) {
+                                return 'Year: ' + context[0].parsed.x;
+                            },
                             label: function(context) {
-                                return context.dataset.label + ': ' + context.parsed.y.toFixed(1);
+                                return 'Born ' + context.dataset.label + ': ' + context.parsed.y.toFixed(2) + ' children';
                             }
                         }
                     }
                 },
                 scales: {
                     x: {
+                        type: 'linear',
                         display: true,
                         title: {
                             display: true,
                             text: 'Year',
                             font: { size: 14, weight: 'bold' }
                         },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
-                        },
-                        ticks: {
-                            maxTicksLimit: 15
-                        }
+                        min: 1950,
+                        max: 2023,
+                        grid: { color: 'rgba(0, 0, 0, 0.1)' }
                     },
                     y: {
                         display: true,
                         title: {
                             display: true,
-                            text: 'Births per 1,000 women',
+                            text: 'Cumulative Births per Woman',
                             font: { size: 14, weight: 'bold' }
                         },
                         min: 0,
-                        max: 310,
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.1)'
-                        }
+                        max: 5,
+                        grid: { color: 'rgba(0, 0, 0, 0.1)' }
                     }
                 }
             }
