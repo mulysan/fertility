@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""Generate Israel Fertility Rate visualization - Cumulative births by birth cohort"""
+"""Generate Israel Fertility Rate visualization - Cumulative births by birth cohort (age on x-axis)"""
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 # Israel fertility data (1950-2023)
-# Columns: year, f12 (10-14), f17 (15-19), f22 (20-24), f27 (25-29), f32 (30-34), f37 (35-39), f42 (40-44), f47 (45-49), f52 (50-54)
 data = [
     (1950, 0.163, 96.414, 281.26, 240.826, 175.429, 85.34, 31.669, 4.694, 0.344),
     (1951, 0.159, 98.635, 286.051, 245.064, 180.327, 86.77, 32.611, 4.689, 0.328),
@@ -84,33 +83,21 @@ data = [
 ]
 
 # Age group midpoints and their column indices
-# f12 (10-14) -> midpoint 12, f17 (15-19) -> midpoint 17, etc.
 age_groups = [
-    (12, 1),   # f12: ages 10-14, midpoint 12
-    (17, 2),   # f17: ages 15-19, midpoint 17
-    (22, 3),   # f22: ages 20-24, midpoint 22
-    (27, 4),   # f27: ages 25-29, midpoint 27
-    (32, 5),   # f32: ages 30-34, midpoint 32
-    (37, 6),   # f37: ages 35-39, midpoint 37
-    (42, 7),   # f42: ages 40-44, midpoint 42
-    (47, 8),   # f47: ages 45-49, midpoint 47
-    (52, 9),   # f52: ages 50-54, midpoint 52
+    (12, 1), (17, 2), (22, 3), (27, 4), (32, 5),
+    (37, 6), (42, 7), (47, 8), (52, 9),
 ]
 
-# Create a dictionary for quick lookup: data_dict[year] = (f12, f17, f22, ...)
+# Create a dictionary for quick lookup
 data_dict = {d[0]: d[1:] for d in data}
 years = [d[0] for d in data]
 min_year, max_year = min(years), max(years)
 
-# Calculate cumulative births for each birth cohort
-# birth_year = year - age
-# We'll track cohorts that have meaningful data coverage
-
+# Calculate cumulative births for each birth cohort (with age on x-axis)
 cohort_data = {}
 
-# For each birth year cohort, calculate cumulative births over time
-for birth_year in range(1898, 2012):  # Birth years that could appear in our data
-    cohort_years = []
+for birth_year in range(1898, 2012):
+    cohort_ages = []
     cohort_cumulative = []
     cumulative = 0
 
@@ -120,20 +107,18 @@ for birth_year in range(1898, 2012):  # Birth years that could appear in our dat
         # Find the appropriate age group
         fertility_rate = 0
         for age_mid, col_idx in age_groups:
-            # Age groups span 5 years, so check if age falls within range
             if age_mid - 2 <= age <= age_mid + 2:
                 if year in data_dict:
-                    # Fertility rate is per 1000 women, multiply by 5 years for the period
                     fertility_rate = data_dict[year][col_idx - 1] * 5 / 1000
                 break
 
         cumulative += fertility_rate
-        if cumulative > 0:  # Only record once they start having children
-            cohort_years.append(year)
+        if cumulative > 0:
+            cohort_ages.append(age)
             cohort_cumulative.append(cumulative)
 
-    if len(cohort_years) >= 5:  # Only keep cohorts with enough data points
-        cohort_data[birth_year] = (cohort_years, cohort_cumulative)
+    if len(cohort_ages) >= 5:
+        cohort_data[birth_year] = (cohort_ages, cohort_cumulative)
 
 # Create figure
 fig, ax = plt.subplots(figsize=(14, 8), facecolor='white')
@@ -143,20 +128,20 @@ ax.set_facecolor('white')
 cmap = plt.cm.viridis
 birth_years_to_plot = sorted([by for by in cohort_data.keys() if 1920 <= by <= 2000])
 
-# Select cohorts to plot (every 5 years for clarity)
+# Select cohorts to plot (every 5 years)
 selected_cohorts = [by for by in birth_years_to_plot if by % 5 == 0]
 
-# Normalize colors based on birth year
+# Normalize colors
 norm = plt.Normalize(min(selected_cohorts), max(selected_cohorts))
 
 for birth_year in selected_cohorts:
     if birth_year in cohort_data:
-        years_plot, cumulative = cohort_data[birth_year]
+        ages_plot, cumulative = cohort_data[birth_year]
         color = cmap(norm(birth_year))
-        ax.plot(years_plot, cumulative, label=str(birth_year), color=color, linewidth=2)
+        ax.plot(ages_plot, cumulative, label=str(birth_year), color=color, linewidth=2)
 
 # Styling
-ax.set_xlabel('Year', fontsize=14, fontweight='bold')
+ax.set_xlabel('Age', fontsize=14, fontweight='bold')
 ax.set_ylabel('Cumulative Births per Woman', fontsize=14, fontweight='bold')
 ax.set_title('Israel: Cumulative Fertility by Birth Cohort', fontsize=18, fontweight='bold', pad=20)
 
@@ -169,7 +154,7 @@ ax.grid(True, alpha=0.3, linestyle='-', color='gray')
 ax.set_axisbelow(True)
 
 # Set axis limits
-ax.set_xlim(1950, 2023)
+ax.set_xlim(15, 55)
 ax.set_ylim(0, 5)
 
 # Tick styling
@@ -180,14 +165,10 @@ sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
 sm.set_array([])
 cbar = plt.colorbar(sm, ax=ax, label='Birth Year', pad=0.02)
 
-# Tight layout
 plt.tight_layout()
 
-# Save the figure
+# Save
 plt.savefig('/home/user/fertility/israel-fertility-map.png',
-            dpi=150,
-            facecolor='white',
-            edgecolor='none',
-            bbox_inches='tight')
+            dpi=150, facecolor='white', edgecolor='none', bbox_inches='tight')
 
 print("PNG saved to: /home/user/fertility/israel-fertility-map.png")
